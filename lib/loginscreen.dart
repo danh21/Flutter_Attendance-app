@@ -1,4 +1,5 @@
 import 'package:attendance_app/homescreen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
@@ -80,12 +81,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 GestureDetector(
                   onTap: () async {
                     FocusScope.of(context).unfocus();
-                    String id = idController.text.trim();
+                    String email = idController.text.trim();
                     String password = passController.text.trim();
 
-                    if (id.isEmpty) {
+                    if (email.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Employee ID is still empty"),
+                        content: Text("Email is still empty"),
                       ));
                     } else if (password.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -93,17 +94,39 @@ class _LoginScreenState extends State<LoginScreen> {
                       ));
                     } else {
                       try {
-                        final credential = await FirebaseAuth.instance
-                            .signInWithEmailAndPassword(
-                          email: id,
+                        await FirebaseAuth.instance.signInWithEmailAndPassword(
+                          email: email,
                           password: password,
                         );
+
+                        final employeeSnapshot = await FirebaseFirestore
+                            .instance
+                            .collection('Employee')
+                            .where('email', isEqualTo: email)
+                            .limit(1)
+                            .get();
+
+                        if (employeeSnapshot.docs.isEmpty) {
+                          await FirebaseAuth.instance.signOut();
+                          throw FirebaseAuthException(
+                            code: 'employee-not-linked',
+                          );
+                        }
+
+                        final employeeData = employeeSnapshot.docs.first.data();
+                        final employeeId = employeeData['id'];
+                        if (employeeId is! String || employeeId.isEmpty) {
+                          await FirebaseAuth.instance.signOut();
+                          throw FirebaseAuthException(
+                            code: 'employee-not-linked',
+                          );
+                        }
 
                         sharedPreferences =
                             await SharedPreferences.getInstance();
                         await sharedPreferences.setString(
                           'employeeId',
-                          credential.user!.email ?? id,
+                          employeeId,
                         );
 
                         if (!context.mounted) return;
@@ -119,6 +142,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             e.code == 'wrong-password' ||
                             e.code == 'user-not-found') {
                           message = 'Email or password is incorrect!';
+                        } else if (e.code == 'employee-not-linked') {
+                          message =
+                              'This email is not linked to an employee profile.';
                         } else if (e.code == 'invalid-email') {
                           message = 'Please enter a valid email address.';
                         } else if (e.code == 'user-disabled') {
