@@ -213,7 +213,7 @@ class _TodayScreenState extends State<TodayScreen> {
                   return Container(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      DateFormat('hh:mm:ss a').format(DateTime.now()),
+                      DateFormat('HH:mm:ss').format(DateTime.now()),
                       style: TextStyle(
                         fontSize: screenWidth / 20,
                         color: Colors.black54,
@@ -274,7 +274,7 @@ class _TodayScreenState extends State<TodayScreen> {
                               if (!mounted) return;
                               setState(() {
                                 checkOut =
-                                    DateFormat('hh:mm').format(DateTime.now());
+                                    DateFormat('HH:mm').format(DateTime.now());
                               });
 
                               await recordReference.update({
@@ -287,12 +287,12 @@ class _TodayScreenState extends State<TodayScreen> {
                               if (!mounted) return;
                               setState(() {
                                 checkIn =
-                                    DateFormat('hh:mm').format(DateTime.now());
+                                    DateFormat('HH:mm').format(DateTime.now());
                               });
 
                               await recordReference.set({
                                 'checkIn':
-                                    DateFormat('hh:mm').format(DateTime.now()),
+                                    DateFormat('HH:mm').format(DateTime.now()),
                                 'date': DateFormat('dd MMMM yyyy')
                                     .format(DateTime.now()),
                                 'name': User.username,
