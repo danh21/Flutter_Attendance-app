@@ -1,5 +1,5 @@
 import 'package:attendance_app/homescreen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,8 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                fieldTitle("Employee ID"),
-                customField("Enter your employee ID", idController, false),
+                fieldTitle("Email"),
+                customField("Enter your email", idController, false),
                 fieldTitle("Password"),
                 customField("Enter your password", passController, true),
                 GestureDetector(
@@ -92,48 +92,51 @@ class _LoginScreenState extends State<LoginScreen> {
                         content: Text("Password is still empty!"),
                       ));
                     } else {
-                      QuerySnapshot snap = await FirebaseFirestore.instance
-                          .collection("Employee")
-                          .where('id', isEqualTo: id)
-                          .get();
-
-                      // print(snap.docs[0]['id']);
                       try {
-                        if (password == snap.docs[0]['password']) {
-                          sharedPreferences =
-                              await SharedPreferences.getInstance();
+                        final credential = await FirebaseAuth.instance
+                            .signInWithEmailAndPassword(
+                          email: id,
+                          password: password,
+                        );
 
-                          sharedPreferences
-                              .setString('employeeId', id)
-                              .then((_) {
-                            Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => const HomeScreen()));
-                          });
-                        } else {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(
-                            content: Text("Password is not correct!"),
-                          ));
+                        sharedPreferences =
+                            await SharedPreferences.getInstance();
+                        await sharedPreferences.setString(
+                          'employeeId',
+                          credential.user!.email ?? id,
+                        );
+
+                        if (!context.mounted) return;
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HomeScreen(),
+                          ),
+                        );
+                      } on FirebaseAuthException catch (e) {
+                        String message = 'Unable to sign in. Please try again.';
+                        if (e.code == 'invalid-credential' ||
+                            e.code == 'wrong-password' ||
+                            e.code == 'user-not-found') {
+                          message = 'Email or password is incorrect!';
+                        } else if (e.code == 'invalid-email') {
+                          message = 'Please enter a valid email address.';
+                        } else if (e.code == 'user-disabled') {
+                          message = 'This account has been disabled.';
                         }
-                      } catch (e) {
-                        String error = " ";
 
-                        if (e.toString() ==
-                            "RangeError (index): Invalid value: Valid value range is empty: 0") {
-                          setState(() {
-                            error = "Error occurred!";
-                          });
-                        } else {
-                          setState(() {
-                            error = "Employee ID does not exist!";
-                          });
-                        }
-
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(error),
-                        ));
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(message)),
+                        );
+                      } catch (_) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Unable to sign in. Please try again.'),
+                          ),
+                        );
                       }
                     }
                   },

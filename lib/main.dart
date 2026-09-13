@@ -2,6 +2,7 @@ import 'package:attendance_app/homescreen.dart';
 import 'package:attendance_app/loginscreen.dart';
 import 'package:attendance_app/model/user.dart';
 import 'package:attendance_app/firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
@@ -53,9 +54,10 @@ class _AuthCheckState extends State<AuthCheck> {
   void _getCurrentUser() async {
     sharedPreferences = await SharedPreferences.getInstance();
     try {
-      if (sharedPreferences.getString('employeeId') != null) {
+      final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
         setState(() {
-          User.username = sharedPreferences.getString('employeeId')!;
+          User.username = currentUser.email ?? '';
           userAvailable = true;
         });
       }
