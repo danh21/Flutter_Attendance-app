@@ -1,5 +1,6 @@
 import 'package:attendance_app/homescreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,67 +74,97 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                fieldTitle("Employee ID"),
-                customField("Enter your employee ID", idController, false),
+                fieldTitle("Email"),
+                customField("Enter your email", idController, false),
                 fieldTitle("Password"),
                 customField("Enter your password", passController, true),
                 GestureDetector(
                   onTap: () async {
                     FocusScope.of(context).unfocus();
-                    String id = idController.text.trim();
+                    String email = idController.text.trim();
                     String password = passController.text.trim();
 
-                    if (id.isEmpty) {
+                    if (email.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Employee ID is still empty"),
+                        content: Text("Email is still empty"),
                       ));
                     } else if (password.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text("Password is still empty!"),
                       ));
                     } else {
-                      QuerySnapshot snap = await FirebaseFirestore.instance
-                          .collection("Employee")
-                          .where('id', isEqualTo: id)
-                          .get();
-
-                      // print(snap.docs[0]['id']);
                       try {
-                        if (password == snap.docs[0]['password']) {
-                          sharedPreferences =
-                              await SharedPreferences.getInstance();
+                        await FirebaseAuth.instance.signInWithEmailAndPassword(
+                          email: email,
+                          password: password,
+                        );
 
-                          sharedPreferences
-                              .setString('employeeId', id)
-                              .then((_) {
-                            Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => const HomeScreen()));
-                          });
-                        } else {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(
-                            content: Text("Password is not correct!"),
-                          ));
-                        }
-                      } catch (e) {
-                        String error = " ";
+                        final employeeSnapshot = await FirebaseFirestore
+                            .instance
+                            .collection('Employee')
+                            .where('email', isEqualTo: email)
+                            .limit(1)
+                            .get();
 
-                        if (e.toString() ==
-                            "RangeError (index): Invalid value: Valid value range is empty: 0") {
-                          setState(() {
-                            error = "Error occurred!";
-                          });
-                        } else {
-                          setState(() {
-                            error = "Employee ID does not exist!";
-                          });
+                        if (employeeSnapshot.docs.isEmpty) {
+                          await FirebaseAuth.instance.signOut();
+                          throw FirebaseAuthException(
+                            code: 'employee-not-linked',
+                          );
                         }
 
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(error),
-                        ));
+                        final employeeData = employeeSnapshot.docs.first.data();
+                        final employeeId = employeeData['id'];
+                        if (employeeId is! String || employeeId.isEmpty) {
+                          await FirebaseAuth.instance.signOut();
+                          throw FirebaseAuthException(
+                            code: 'employee-not-linked',
+                          );
+                        }
+
+                        sharedPreferences =
+                            await SharedPreferences.getInstance();
+                        await sharedPreferences.setString(
+                          'employeeId',
+                          employeeId,
+                        );
+
+                        if (!context.mounted) return;
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HomeScreen(),
+                          ),
+                        );
+                      } on FirebaseAuthException catch (e) {
+                        String message = 'Unable to sign in. Please try again.';
+                        if (e.code == 'invalid-credential' ||
+                            e.code == 'wrong-password' ||
+                            e.code == 'user-not-found') {
+                          message = 'Email or password is incorrect!';
+                        } else if (e.code == 'employee-not-linked') {
+                          message =
+                              'This email is not linked to an employee profile.';
+                        } else if (e.code == 'invalid-email') {
+                          message = 'Please enter a valid email address.';
+                        } else if (e.code == 'user-disabled') {
+                          message = 'This account has been disabled.';
+                        }
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(message)),
+                        );
+                      } catch (error, stack) {
+                        debugPrint('[LOGIN] Unexpected sign-in error: $error');
+                        debugPrintStack(stackTrace: stack);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Unable to sign in. Please try again.'),
+                          ),
+                        );
                       }
                     }
                   },
