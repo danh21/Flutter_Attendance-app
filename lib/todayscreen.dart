@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:attendance_app/model/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:slide_to_act/slide_to_act.dart';
@@ -28,27 +31,41 @@ class _TodayScreenState extends State<TodayScreen> {
     _getRecord();
   }
 
+  Future<DocumentReference<Map<String, dynamic>>?>
+      _getEmployeeReference() async {
+    final email = firebase_auth.FirebaseAuth.instance.currentUser?.email;
+    if (email == null || email.isEmpty) return null;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('Employee')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+    return snapshot.docs.first.reference;
+  }
+
   void _getRecord() async {
     try {
-      QuerySnapshot snap = await FirebaseFirestore.instance
-          .collection("Employee")
-          .where('id', isEqualTo: User.username)
-          .get();
+      final employeeReference = await _getEmployeeReference();
+      if (employeeReference == null) throw StateError('Employee not linked');
 
-      DocumentSnapshot snap2 = await FirebaseFirestore.instance
-          .collection("Employee")
-          .doc(snap.docs[0].id)
+      final recordSnapshot = await employeeReference
           .collection("Record")
           .doc(DateFormat('dd MMMM yyyy').format(DateTime.now()))
           .get();
 
+      if (!mounted) return;
+      final record = recordSnapshot.data();
       setState(() {
-        checkIn = snap2['checkIn'];
-        checkOut = snap2['checkOut'];
-        date = snap2['date'];
+        checkIn = record?['checkIn'] as String? ?? "--/--";
+        checkOut = record?['checkOut'] as String? ?? "--/--";
+        date = record?['date'] as String? ?? "dd MMMM yyyy";
         name = User.username;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         checkIn = "--/--";
         checkOut = "--/--";
@@ -222,61 +239,60 @@ class _TodayScreenState extends State<TodayScreen> {
                           key: key,
                           onSubmit: () async {
                             Timer(const Duration(seconds: 1), () {
-                              key.currentState!.reset();
+                              key.currentState?.reset();
                             });
 
-                            QuerySnapshot snap = await FirebaseFirestore
-                                .instance
-                                .collection("Employee")
-                                .where('id', isEqualTo: User.username)
-                                .get();
+                            final employeeReference =
+                                await _getEmployeeReference();
+                            if (employeeReference == null) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'This email is not linked to an employee.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
 
-                            DocumentSnapshot snap2 = await FirebaseFirestore
-                                .instance
-                                .collection("Employee")
-                                .doc(snap.docs[0].id)
+                            final recordReference = employeeReference
                                 .collection("Record")
                                 .doc(DateFormat('dd MMMM yyyy')
-                                    .format(DateTime.now()))
-                                .get();
+                                    .format(DateTime.now()));
+                            final recordSnapshot = await recordReference.get();
 
                             try {
-                              String checkIn = snap2['checkIn'];
+                              final record = recordSnapshot.data();
+                              final existingCheckIn = record?['checkIn'];
+                              if (existingCheckIn is! String) {
+                                throw StateError('No check-in record');
+                              }
 
+                              if (!mounted) return;
                               setState(() {
                                 checkOut =
                                     DateFormat('hh:mm').format(DateTime.now());
                               });
 
-                              await FirebaseFirestore.instance
-                                  .collection("Employee")
-                                ..doc(snap.docs[0].id)
-                                    .collection("Record")
-                                    .doc(DateFormat('dd MMMM yyyy')
-                                        .format(DateTime.now()))
-                                    .update({
-                                  'checkIn': checkIn,
-                                  'checkOut': checkOut,
-                                });
+                              await recordReference.update({
+                                'checkIn': existingCheckIn,
+                                'checkOut': checkOut,
+                              });
                             } catch (e) {
+                              if (!mounted) return;
                               setState(() {
                                 checkIn =
                                     DateFormat('hh:mm').format(DateTime.now());
                               });
 
-                              await FirebaseFirestore.instance
-                                  .collection("Employee")
-                                ..doc(snap.docs[0].id)
-                                    .collection("Record")
-                                    .doc(DateFormat('dd MMMM yyyy')
-                                        .format(DateTime.now()))
-                                    .set({
-                                  'checkIn': DateFormat('hh:mm')
-                                      .format(DateTime.now()),
-                                  'date': DateFormat('dd MMMM yyyy')
-                                      .format(DateTime.now()),
-                                  'name': User.username,
-                                });
+                              await recordReference.set({
+                                'checkIn':
+                                    DateFormat('hh:mm').format(DateTime.now()),
+                                'date': DateFormat('dd MMMM yyyy')
+                                    .format(DateTime.now()),
+                                'name': User.username,
+                              });
                             }
                           },
                         );
@@ -298,8 +314,4 @@ class _TodayScreenState extends State<TodayScreen> {
       ),
     );
   }
-}
-
-class Timer {
-  Timer(Duration duration, Null Function() param1);
 }
