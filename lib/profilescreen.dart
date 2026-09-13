@@ -1,4 +1,3 @@
-import 'package:attendance_app/loginscreen.dart';
 import 'package:attendance_app/model/user.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
@@ -39,17 +38,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isSigningOut = true;
     });
 
-    await firebase_auth.FirebaseAuth.instance.signOut();
+    debugPrint('[LOGOUT] Starting logout');
+    User.username = ' ';
     final sharedPreferences = await SharedPreferences.getInstance();
     await sharedPreferences.remove('employeeId');
-    User.username = ' ';
-
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    debugPrint('[LOGOUT] Local session cleared');
+    await firebase_auth.FirebaseAuth.instance.signOut();
+    debugPrint('[LOGOUT] Firebase signOut completed');
   }
 
   @override

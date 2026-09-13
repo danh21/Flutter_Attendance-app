@@ -64,7 +64,9 @@ class _TodayScreenState extends State<TodayScreen> {
         date = record?['date'] as String? ?? "dd MMMM yyyy";
         name = User.username;
       });
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[TODAY] Failed to load attendance record: $e');
+      debugPrintStack(stackTrace: stack);
       if (!mounted) return;
       setState(() {
         checkIn = "--/--";
@@ -279,7 +281,9 @@ class _TodayScreenState extends State<TodayScreen> {
                                 'checkIn': existingCheckIn,
                                 'checkOut': checkOut,
                               });
-                            } catch (e) {
+                            } catch (e, stack) {
+                              debugPrint('[TODAY] Record update failed: $e');
+                              debugPrintStack(stackTrace: stack);
                               if (!mounted) return;
                               setState(() {
                                 checkIn =

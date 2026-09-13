@@ -155,7 +155,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(message)),
                         );
-                      } catch (_) {
+                      } catch (error, stack) {
+                        debugPrint('[LOGIN] Unexpected sign-in error: $error');
+                        debugPrintStack(stackTrace: stack);
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
