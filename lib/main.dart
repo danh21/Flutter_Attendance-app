@@ -5,7 +5,6 @@ import 'package:attendance_app/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,11 +54,6 @@ class _AuthCheckState extends State<AuthCheck> {
 
   void _getCurrentUser() async {
     sharedPreferences = await SharedPreferences.getInstance();
-
-    if (defaultTargetPlatform == TargetPlatform.windows) {
-      return;
-    }
-
     try {
       final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
