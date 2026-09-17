@@ -8,7 +8,7 @@
   - [📁 Source](#-source)
   - [🚀 Getting Started](#-getting-started)
     - [💻 Technology](#-technology)
-    - [🛠️ Build / Verification](#️-build--verification)
+    - [🛠️ Build and Run Android](#️-build-and-run-android)
     - [Firebase setup](#firebase-setup)
   - [🔗 Reference](#-reference)
 
@@ -62,26 +62,42 @@ calendar history, profile information, and location-based attendance support.
 - Slide to Act
 - Month Year Picker
 
-### 🛠️ Build / Verification
+### 🛠️ Build and Run Android
 
-Install Flutter, then run these commands from the project directory:
+Install Flutter and Android Studio, then make sure Android SDK 36 and a Java 11 JDK are installed.
+Connect an Android phone with USB debugging enabled, or start an Android emulator.
+
+Run these commands from the project directory:
 
 ```bash
 flutter pub get
+flutter run -d <device-id>
+```
+
+Find the device ID with:
+
+```bash
+flutter devices
+```
+
+Build a debug APK for modern Android phones:
+
+```bash
+flutter build apk --debug --target-platform android-arm64
+```
+
+The APK is created at:
+
+```text
+build/app/outputs/flutter-apk/app-debug.apk
+```
+
+The Android project uses minimum SDK 24 and packages the arm64-v8a ABI.
+For basic verification, run:
+
+```bash
 flutter analyze
 flutter test
-```
-
-Run the application on a connected device or desktop target:
-
-```bash
-flutter run -d windows
-```
-
-Build a Windows debug executable:
-
-```bash
-flutter build windows --debug
 ```
 
 ### Firebase setup
